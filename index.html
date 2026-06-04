@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Recruit System</title>
- 
-<!-- ✅ Firebase -->
+
+<!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 
@@ -26,7 +26,7 @@ body { font-family: Arial; padding:15px; background:#f7f7f7; }
 .backup { background:#ffeeba; }
 
 .name { font-weight:bold; font-size:16px; }
-.info { font-size:13px; color:#555; }
+.info { font-size:13px; color:#555; margin:2px 0; }
 
 input, select {
   margin:5px;
@@ -55,20 +55,26 @@ input, select {
 
 <script>
 
-// ✅ Firebase init
+// ✅ Firebase
 firebase.initializeApp({
   databaseURL: "https://mass-recruit-event-default-rtdb.asia-southeast1.firebasedatabase.app/"
 });
 
 const db = firebase.database();
 
-// ✅ HR (FIXED)
+// ✅ DOM（修正搜尋失效的關鍵）
+const sessionFilter = document.getElementById("sessionFilter");
+const searchBox = document.getElementById("searchBox");
+const list = document.getElementById("list");
+const summary = document.getElementById("summary");
+
+// ✅ HR（已改）
 const hrList = ["Chloe","Amber","Nicole"];
 
-// ✅ Data cache
+// ✅ 即時資料
 let data = {};
 
-// ✅ Candidate list (unchanged)
+// ✅ Candidates（你的完整資料）
 const candidates = [
 {n:"李佳修",t:"9:00",i:"Dino Wang & Jeff Yang",l:"CY",team:"Etch",r:"Cubicle"},
 {n:"許哲瑋",t:"9:00",i:"Johnson Kuo & Andy Hsueh",l:"CY",team:"Etch",r:"809"},
@@ -131,69 +137,88 @@ const candidates = [
 {n:"莊宜霖",t:"15:00",i:"Jack Wang & Dean Cheng",l:"TC",team:"Clean",r:"813"}
 ];
 
-// ✅ Firebase live
-db.ref("checkin").on("value", snap => {
+// ✅ Firebase 即時
+db.ref("checkin").on("value", snap=>{
   data = snap.val() || {};
   render();
 });
 
-// ✅ Render
+// ✅ Render（含搜尋+分析）
 function render(){
-let filter=sessionFilter.value;
-let search=searchBox.value.trim();
 
-let total=0,checked=0,offer=0,hr=0;
+  let filter = sessionFilter.value;
+  let search = searchBox.value.trim();
 
-list.innerHTML="";
+  let total=0,checked=0,offer=0,hr=0;
+  let sessionStats={};
 
-candidates.forEach(c=>{
-if(filter!="all" && c.t!=filter) return;
-if(search && !c.n.includes(search)) return;
+  list.innerHTML="";
 
-total++;
+  candidates.forEach(c=>{
 
-let s=data[c.n]||{};
-if(s.checked) checked++;
-if(s.offer) offer++;
-if(s.hr) hr++;
+    if(filter!="all" && c.t!=filter) return;
+    if(search && !c.n.includes(search)) return;
 
-let div=document.createElement("div");
-div.className="card";
+    total++;
 
-if(c.i==="Backup") div.classList.add("backup");
-if(s.checked) div.classList.add("checked");
-if(s.offer) div.classList.add("offer");
-if(s.hr) div.classList.add("hrDone");
+    let s=data[c.n]||{};
 
-div.innerHTML=`
-<div class='name'>${c.n} (${c.t})</div>
-<div class='info'>👨‍💼 ${c.i}</div>
-<div class='info'>📍 ${c.l} / ${c.team} / ${c.r}</div>
+    if(s.checked) checked++;
+    if(s.offer) offer++;
+    if(s.hr) hr++;
 
-✅ <input type="checkbox" ${s.checked?"checked":""} onchange="update('${c.n}','checked',this.checked)">
-⭐ <input type="checkbox" ${s.offer?"checked":""} onchange="update('${c.n}','offer',this.checked)">
+    // ✅ 場次分析
+    if(!sessionStats[c.t]) sessionStats[c.t]=0;
+    if(s.checked) sessionStats[c.t]++;
 
-<select onchange="update('${c.n}','hr',this.value)">
-<option value="">HR</option>
-${hrList.map(h=>`<option ${s.hr===h?"selected":""}>${h}</option>`).join("")}
-</select>
-`;
+    let div=document.createElement("div");
+    div.className="card";
 
-list.appendChild(div);
-});
+    if(c.i==="Backup") div.classList.add("backup");
+    if(s.checked) div.classList.add("checked");
+    if(s.offer) div.classList.add("offer");
+    if(s.hr) div.classList.add("hrDone");
 
-summary.innerText=`報到 ${checked}/${total} ｜ Offer ${offer} ｜ HR ${hr}`;
+    div.innerHTML=`
+    <div class='name'>${c.n} (${c.t})</div>
+    <div class='info'>👨‍💼 Interviewer: ${c.i}</div>
+    <div class='info'>📍 ${c.l} / ${c.team} / ${c.r}</div>
+
+    ✅ <input type="checkbox" ${s.checked?"checked":""}
+    onchange="update('${c.n}','checked',this.checked)">
+
+    ⭐ <input type="checkbox" ${s.offer?"checked":""}
+    onchange="update('${c.n}','offer',this.checked)">
+
+    <select onchange="update('${c.n}','hr',this.value)">
+    <option value="">HR</option>
+    ${hrList.map(h=>`<option ${s.hr===h?"selected":""}>${h}</option>`).join("")}
+    </select>
+    `;
+
+    list.appendChild(div);
+  });
+
+  // ✅ summary + 分析
+  let analysis = Object.entries(sessionStats)
+    .map(([t,v])=>`${t}: ${v}`)
+    .join(" ｜ ");
+
+  summary.innerText =
+  `報到 ${checked}/${total} ｜ Offer ${offer} ｜ HR ${hr}
+   ｜ 📊各場次: ${analysis}`;
 }
 
-// ✅ Update
+// ✅ update
 function update(n,f,v){
-let p={}; p[f]=v || null;
-db.ref("checkin/"+n).update(p);
+  let p={}; 
+  p[f]=v||null;
+  db.ref("checkin/"+n).update(p);
 }
 
-// ✅ Events
-sessionFilter.onchange=render;
-searchBox.onkeyup=render;
+// ✅ events（讓搜尋即時動）
+sessionFilter.addEventListener("change", render);
+searchBox.addEventListener("keyup", render);
 
 </script>
 
