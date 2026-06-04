@@ -1,189 +1,358 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-<meta charset="UTF-8">
-<title>Mass Recruit Check-in</title>
- 
-<!-- ✅ Firebase 正確載入 -->
-<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
- 
-<style>
-body { font-family: Arial; padding: 10px; }
-.card {
-  border:1px solid #ccc;
-  padding:10px;
-  margin:8px 0;
-  border-radius:10px;
-}
-.checked { background:#eee; }
-.offer { background:#c8f7c5; }
-.hrDone { background:#8be28b; }
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mass Recruit Check-in</title>
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+
+  <style>
+    body {
+      font-family: Arial, "Microsoft JhengHei", sans-serif;
+      padding: 16px;
+      background: #f7f7f7;
+      margin: 0;
+    }
+
+    h2 {
+      margin-top: 0;
+    }
+
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+
+    select {
+      padding: 6px 10px;
+      font-size: 14px;
+    }
+
+    #summary {
+      margin: 12px 0 16px;
+      font-size: 18px;
+      font-weight: bold;
+    }
+
+    .status {
+      margin-bottom: 12px;
+      color: #555;
+      font-size: 14px;
+    }
+
+    .card {
+      border: 1px solid #ccc;
+      padding: 12px;
+      margin: 10px 0;
+      border-radius: 10px;
+      background: white;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+
+    .checked {
+      background: #eeeeee;
+    }
+
+    .offer {
+      background: #c8f7c5;
+    }
+
+    .hrDone {
+      background: #8be28b;
+    }
+
+    .candidate-name {
+      font-size: 18px;
+      font-weight: bold;
+      margin-bottom: 8px;
+    }
+
+    .row {
+      margin: 6px 0;
+    }
+
+    .empty {
+      color: #666;
+      padding: 12px;
+      background: white;
+      border-radius: 10px;
+      border: 1px dashed #bbb;
+    }
+
+    .error {
+      color: #b00020;
+      background: #ffeaea;
+      border: 1px solid #f1b5b5;
+      padding: 10px;
+      border-radius: 8px;
+      margin-bottom: 12px;
+    }
+  </style>
 </head>
- 
 <body>
- 
-<h2>📋 招募報到系統</h2>
- 
-<select id="sessionFilter">
-<option value="all">全部</option>
-<option>9:00</option>
-<option>10:00</option>
-<option>11:00</option>
-<option>13:00</option>
-<option>14:00</option>
-<option>15:00</option>
-</select>
- 
-<h3 id="summary"></h3>
-<div id="list"></div>
- 
-<script>
-// ✅ Firebase
-const firebaseConfig = {
-  databaseURL: "https://mass-recruit-event-default-rtdb.asia-southeast1.firebasedatabase.app/"
-};
- 
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
- 
-// ✅ 完整名單
-const candidates = [
-{n:"李佳修",t:"9:00"},
-{n:"許哲瑋",t:"9:00"},
-{n:"王懷緯",t:"9:00"},
-{n:"李育霖",t:"9:00"},
-{n:"黃冠維",t:"9:00"},
-{n:"楊博丞",t:"9:00"},
-{n:"吳善垣",t:"9:00"},
-{n:"林俊呈",t:"9:00"},
-{n:"李俊德",t:"9:00"},
-{n:"邱俊評",t:"9:00"},
- 
-{n:"蔡武丞",t:"10:00"},
-{n:"朱柏勝",t:"10:00"},
-{n:"吳念謙",t:"10:00"},
-{n:"王吉斌",t:"10:00"},
-{n:"林羿廷",t:"10:00"},
-{n:"白祐維",t:"10:00"},
-{n:"陳志鈞",t:"10:00"},
-{n:"黃泊泰",t:"10:00"},
-{n:"劉致賢",t:"10:00"},
- 
-{n:"楊澤彬",t:"11:00"},
-{n:"廖泉淼",t:"11:00"},
-{n:"趙唯志",t:"11:00"},
-{n:"余旻錡",t:"11:00"},
-{n:"吳淇誌",t:"11:00"},
-{n:"李昱陞",t:"11:00"},
-{n:"任志振",t:"11:00"},
-{n:"曹家瑜",t:"11:00"},
-{n:"張朝閔",t:"11:00"},
- 
-{n:"楊洸榮",t:"13:00"},
-{n:"林敬傑",t:"13:00"},
-{n:"洪經富",t:"13:00"},
-{n:"彭家威",t:"13:00"},
-{n:"洪偉軒",t:"13:00"},
-{n:"洪加城",t:"13:00"},
-{n:"簡君同",t:"13:00"},
-{n:"林嗣唯",t:"13:00"},
-{n:"周柏碩",t:"13:00"},
- 
-{n:"翁瑞宏",t:"14:00"},
-{n:"易瑞祥",t:"14:00"},
-{n:"李晉安",t:"14:00"},
-{n:"劉哲銘",t:"14:00"},
-{n:"洪立軍",t:"14:00"},
-{n:"郭洹瑜",t:"14:00"},
-{n:"楊皕盛",t:"14:00"},
-{n:"林明輝",t:"14:00"},
-{n:"謝瑩澂",t:"14:00"},
- 
-{n:"蘇欣柔",t:"15:00"},
-{n:"侯憲文",t:"15:00"},
-{n:"王暐棟",t:"15:00"},
-{n:"張煒祥",t:"15:00"},
-{n:"許恒嘉",t:"15:00"},
-{n:"林良晏",t:"15:00"},
-{n:"黃于恆",t:"15:00"},
-{n:"莊宜霖",t:"15:00"}
-];
- 
-// ✅ HR
-const hrList = ["Amber","Jenny","Kevin"];
- 
-// ✅ 即時監聽
-db.ref("checkin").on("value", snap=>{
-  render(snap.val()||{});
-});
- 
-// ✅ 畫畫面
-function render(data){
-  const container = document.getElementById("list");
-  container.innerHTML="";
- 
-  let total=0, checked=0, offer=0, hrDone=0;
-  const filter = document.getElementById("sessionFilter").value;
- 
-  candidates.forEach(c=>{
-    if(filter!=="all" && c.t!==filter) return;
- 
-    total++;
-    const s = data[c.n]||{};
- 
-    if(s.checked) checked++;
-    if(s.offer) offer++;
-    if(s.hr) hrDone++;
- 
-    const div=document.createElement("div");
-    div.className="card";
- 
-    if(s.checked) div.classList.add("checked");
-    if(s.offer) div.classList.add("offer");
-    if(s.hr) div.classList.add("hrDone");
- 
-    div.innerHTML=`
-      <b>${c.n}</b> (${c.t})<br>
+  <h2>📋 招募報到系統</h2>
 
-      ✅ 報到 
-      <input type="checkbox" ${s.checked?"checked":""}
-      onchange="update('${c.n}','checked',this.checked)"><br>
+  <div class="toolbar">
+    <label for="sessionFilter">場次：</label>
+    <select id="sessionFilter">
+      <option value="all">全部</option>
+      <option value="9:00">9:00</option>
+      <option value="10:00">10:00</option>
+      <option value="11:00">11:00</option>
+      <option value="13:00">13:00</option>
+      <option value="14:00">14:00</option>
+      <option value="15:00">15:00</option>
+    </select>
+  </div>
 
-      ⭐ Offer
-      <input type="checkbox" ${s.offer?"checked":""}
-      onchange="update('${c.n}','offer',this.checked)"><br>
- 
-      👤HR：
-      <select onchange="update('${c.n}','hr',this.value)">
-      <option value="">--選--</option>
-      ${hrList.map(h=>`<option ${s.hr===h?"selected":""}>${h}</option>`).join("")}
-      </select>
-    `;
- 
-    container.appendChild(div);
-  });
- 
-  document.getElementById("summary").innerText =
-  `報到 ${checked}/${total} ｜ Offer ${offer} ｜ HR ${hrDone}`;
-}
- 
-// ✅ 更新資料（修正版本）
-function update(name, field, value){
-  db.ref("checkin/"+name).update({
-    [field]: value === "" ? null : value
-  });
-}
- 
-// ✅ 切場次
-document.getElementById("sessionFilter").onchange = ()=>{
-  db.ref("checkin").once("value", snap=>{
-    render(snap.val()||{});
-  });
-};
- 
-</script>
- 
+  <div id="errorBox"></div>
+  <div id="status" class="status">正在載入資料...</div>
+  <h3 id="summary">報到 0/0 ｜ Offer 0 ｜ HR 0</h3>
+  <div id="list"></div>
+
+  <script>
+    // =========================
+    // Firebase config
+    // =========================
+    const firebaseConfig = {
+      databaseURL: "https://mass-recruit-event-default-rtdb.asia-southeast1.firebasedatabase.app/"
+    };
+
+    // If your Firebase project requires full config, use:
+    // const firebaseConfig = {
+    //   apiKey: "YOUR_API_KEY",
+    //   authDomain: "YOUR_PROJECT.firebaseapp.com",
+    //   databaseURL: "https://mass-recruit-event-default-rtdb.asia-southeast1.firebasedatabase.app/",
+    //   projectId: "YOUR_PROJECT_ID",
+    //   storageBucket: "YOUR_PROJECT.appspot.com",
+    //   messagingSenderId: "YOUR_SENDER_ID",
+    //   appId: "YOUR_APP_ID"
+    // };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    // =========================
+    // Candidate list
+    // =========================
+    const candidates = [
+      { n: "李佳修", t: "9:00" },
+      { n: "許哲瑋", t: "9:00" },
+      { n: "王懷緯", t: "9:00" },
+      { n: "李育霖", t: "9:00" },
+      { n: "黃冠維", t: "9:00" },
+      { n: "楊博丞", t: "9:00" },
+      { n: "吳善垣", t: "9:00" },
+      { n: "林俊呈", t: "9:00" },
+      { n: "李俊德", t: "9:00" },
+      { n: "邱俊評", t: "9:00" },
+
+      { n: "蔡武丞", t: "10:00" },
+      { n: "朱柏勝", t: "10:00" },
+      { n: "吳念謙", t: "10:00" },
+      { n: "王吉斌", t: "10:00" },
+      { n: "林羿廷", t: "10:00" },
+      { n: "白祐維", t: "10:00" },
+      { n: "陳志鈞", t: "10:00" },
+      { n: "黃泊泰", t: "10:00" },
+      { n: "劉致賢", t: "10:00" },
+
+      { n: "楊澤彬", t: "11:00" },
+      { n: "廖泉淼", t: "11:00" },
+      { n: "趙唯志", t: "11:00" },
+      { n: "余旻錡", t: "11:00" },
+      { n: "吳淇誌", t: "11:00" },
+      { n: "李昱陞", t: "11:00" },
+      { n: "任志振", t: "11:00" },
+      { n: "曹家瑜", t: "11:00" },
+      { n: "張朝閔", t: "11:00" },
+
+      { n: "楊洸榮", t: "13:00" },
+      { n: "林敬傑", t: "13:00" },
+      { n: "洪經富", t: "13:00" },
+      { n: "彭家威", t: "13:00" },
+      { n: "洪偉軒", t: "13:00" },
+      { n: "洪加城", t: "13:00" },
+      { n: "簡君同", t: "13:00" },
+      { n: "林嗣唯", t: "13:00" },
+      { n: "周柏碩", t: "13:00" },
+
+      { n: "翁瑞宏", t: "14:00" },
+      { n: "易瑞祥", t: "14:00" },
+      { n: "李晉安", t: "14:00" },
+      { n: "劉哲銘", t: "14:00" },
+      { n: "洪立軍", t: "14:00" },
+      { n: "郭洹瑜", t: "14:00" },
+      { n: "楊皕盛", t: "14:00" },
+      { n: "林明輝", t: "14:00" },
+      { n: "謝瑩澂", t: "14:00" },
+
+      { n: "蘇欣柔", t: "15:00" },
+      { n: "侯憲文", t: "15:00" },
+      { n: "王暐棟", t: "15:00" },
+      { n: "張煒祥", t: "15:00" },
+      { n: "許恒嘉", t: "15:00" },
+      { n: "林良晏", t: "15:00" },
+      { n: "黃于恆", t: "15:00" },
+      { n: "莊宜霖", t: "15:00" }
+    ];
+
+    // HR list
+    const hrList = ["Amber", "Jenny", "Kevin"];
+
+    // Cached data from Firebase
+    let currentData = {};
+
+    const listEl = document.getElementById("list");
+    const summaryEl = document.getElementById("summary");
+    const statusEl = document.getElementById("status");
+    const errorBoxEl = document.getElementById("errorBox");
+    const sessionFilterEl = document.getElementById("sessionFilter");
+
+    // =========================
+    // Render UI
+    // =========================
+    function render(data) {
+      listEl.innerHTML = "";
+      errorBoxEl.innerHTML = "";
+
+      const filter = sessionFilterEl.value;
+
+      let total = 0;
+      let checked = 0;
+      let offer = 0;
+      let hrDone = 0;
+      let visibleCount = 0;
+
+      candidates.forEach((c) => {
+        if (filter !== "all" && c.t !== filter) return;
+
+        total++;
+        visibleCount++;
+
+        const s = data[c.n] || {};
+
+        if (s.checked) checked++;
+        if (s.offer) offer++;
+        if (s.hr) hrDone++;
+
+        const div = document.createElement("div");
+        div.className = "card";
+
+        // Priority: hrDone > offer > checked
+        if (s.checked) div.classList.add("checked");
+        if (s.offer) div.classList.add("offer");
+        if (s.hr) div.classList.add("hrDone");
+
+        div.innerHTML = `
+          <div class="candidate-name">${c.n} (${c.t})</div>
+
+          <div class="row">
+            <label>
+              ✅ 報到
+              <input type="checkbox" ${s.checked ? "checked" : ""}>
+            </label>
+          </div>
+
+          <div class="row">
+            <label>
+              ⭐ Offer
+              <input type="checkbox" ${s.offer ? "checked" : ""}>
+            </label>
+          </div>
+
+          <div class="row">
+            <label>
+              👤 HR：
+              <select>
+                <option value="">--選--</option>
+                ${hrList.map(h => `<option value="${h}" ${s.hr === h ? "selected" : ""}>${h}</option>`).join("")}
+              </select>
+            </label>
+          </div>
+        `;
+
+        const checkinCheckbox = div.querySelectorAll("input")[0];
+        const offerCheckbox = div.querySelectorAll("input")[1];
+        const hrSelect = div.querySelector("select");
+
+        checkinCheckbox.addEventListener("change", (e) => {
+          updateCandidate(c.n, "checked", e.target.checked);
+        });
+
+        offerCheckbox.addEventListener("change", (e) => {
+          updateCandidate(c.n, "offer", e.target.checked);
+        });
+
+        hrSelect.addEventListener("change", (e) => {
+          updateCandidate(c.n, "hr", e.target.value);
+        });
+
+        listEl.appendChild(div);
+      });
+
+      if (visibleCount === 0) {
+        listEl.innerHTML = `<div class="empty">目前沒有符合此場次的候選人。</div>`;
+      }
+
+      summaryEl.innerText = `報到 ${checked}/${total} ｜ Offer ${offer} ｜ HR ${hrDone}`;
+      statusEl.innerText = "資料已同步";
+    }
+
+    // =========================
+    // Update data
+    // =========================
+    function updateCandidate(name, field, value) {
+      const payload = {};
+      payload[field] = value === "" ? null : value;
+
+      db.ref("checkin/" + name)
+        .update(payload)
+        .catch((err) => {
+          console.error("Update failed:", err);
+          showError("更新失敗：" + err.message);
+        });
+    }
+
+    // =========================
+    // Error display
+    // =========================
+    function showError(message) {
+      errorBoxEl.innerHTML = `<div class="error">${message}</div>`;
+      statusEl.innerText = "發生錯誤";
+    }
+
+    // =========================
+    // Firebase live listener
+    // =========================
+    db.ref("checkin").on(
+      "value",
+      (snapshot) => {
+        currentData = snapshot.val() || {};
+        console.log("Firebase data:", currentData);
+        render(currentData);
+      },
+      (error) => {
+        console.error("Firebase read failed:", error);
+        showError("Firebase 讀取失敗：" + error.message);
+      }
+    );
+
+    // =========================
+    // Filter change
+    // =========================
+    sessionFilterEl.addEventListener("change", () => {
+      render(currentData);
+    });
+
+    // Initial render in case Firebase is slow
+    render({});
+  </script>
 </body>
 </html>
