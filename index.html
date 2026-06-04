@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <title>Mass Recruit Check-in</title>
  
-<!-- ✅ Firebase 正確載入  -->
+<!-- ✅ Firebase 正確載入 -->
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
  
@@ -113,12 +113,12 @@ const candidates = [
  
 // ✅ HR
 const hrList = ["Amber","Jenny","Kevin"];
-
+ 
 // ✅ 即時監聽
 db.ref("checkin").on("value", snap=>{
   render(snap.val()||{});
 });
-
+ 
 // ✅ 畫畫面
 function render(data){
   const container = document.getElementById("list");
@@ -172,7 +172,7 @@ function render(data){
 // ✅ 更新資料（修正版本）
 function update(name, field, value){
   db.ref("checkin/"+name).update({
-    value
+    [field]: value === "" ? null : value
   });
 }
  
