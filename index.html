@@ -4,14 +4,19 @@
 <meta charset="UTF-8">
 <title>Mass Recruit Check-in</title>
  
-<!-- ✅ Firebase -->
-://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+<!-- ✅ Firebase 正確載入  -->
+https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.jsscript>
+https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js>
  
 <style>
 body { font-family: Arial; padding: 10px; }
-.card { border:1px solid #ccc; padding:10px; margin:8px 0; border-radius:10px; }
-.checked { background:#e0e0e0; }
+.card {
+  border:1px solid #ccc;
+  padding:10px;
+  margin:8px 0;
+  border-radius:10px;
+}
+.checked { background:#eee; }
 .offer { background:#c8f7c5; }
 .hrDone { background:#8be28b; }
 </style>
@@ -35,11 +40,11 @@ body { font-family: Arial; padding: 10px; }
 <div id="list"></div>
  
 <script>
- 
 // ✅ Firebase
 const firebaseConfig = {
   databaseURL: "https://mass-recruit-event-default-rtdb.asia-southeast1.firebasedatabase.app/"
 };
+ 
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
  
@@ -108,16 +113,18 @@ const candidates = [
  
 // ✅ HR
 const hrList = ["Amber","Jenny","Kevin"];
- 
+
+// ✅ 即時監聽
 db.ref("checkin").on("value", snap=>{
   render(snap.val()||{});
 });
- 
+
+// ✅ 畫畫面
 function render(data){
   const container = document.getElementById("list");
   container.innerHTML="";
-  let total=0, checked=0, offer=0, hrDone=0;
  
+  let total=0, checked=0, offer=0, hrDone=0;
   const filter = document.getElementById("sessionFilter").value;
  
   candidates.forEach(c=>{
@@ -139,14 +146,16 @@ function render(data){
  
     div.innerHTML=`
       <b>${c.n}</b> (${c.t})<br>
- 
-      報到 <input type="checkbox" ${s.checked?"checked":""}
+
+      ✅ 報到 
+      <input type="checkbox" ${s.checked?"checked":""}
       onchange="update('${c.n}','checked',this.checked)"><br>
- 
-      Offer <input type="checkbox" ${s.offer?"checked":""}
+
+      ⭐ Offer
+      <input type="checkbox" ${s.offer?"checked":""}
       onchange="update('${c.n}','offer',this.checked)"><br>
  
-      HR：
+      👤HR：
       <select onchange="update('${c.n}','hr',this.value)">
       <option value="">--選--</option>
       ${hrList.map(h=>`<option ${s.hr===h?"selected":""}>${h}</option>`).join("")}
@@ -160,17 +169,21 @@ function render(data){
   `報到 ${checked}/${total} ｜ Offer ${offer} ｜ HR ${hrDone}`;
 }
  
-// ✅ 修正版（最重要！）
+// ✅ 更新資料（修正版本）
 function update(name, field, value){
   db.ref("checkin/"+name).update({
-    [field]: value
+    value
   });
 }
  
-document.getElementById("sessionFilter").onchange=()=>{
-  db.ref("checkin").once("value",s=>render(s.val()||{}));
+// ✅ 切場次
+document.getElementById("sessionFilter").onchange = ()=>{
+  db.ref("checkin").once("value", snap=>{
+    render(snap.val()||{});
+  });
 };
  
 </script>
+ 
 </body>
 </html>
