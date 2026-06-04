@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<title>Mass Recruit Check-in</title>
+ 
+<!-- ✅ Firebase -->
+://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+ 
+<style>
+body { font-family: Arial; padding: 10px; }
+.card { border:1px solid #ccc; padding:10px; margin:8px 0; border-radius:10px; }
+.checked { background:#e0e0e0; }
+.offer { background:#c8f7c5; }
+.hrDone { background:#8be28b; }
+</style>
+</head>
+ 
+<body>
+ 
+<h2>📋 招募報到系統</h2>
+ 
+<select id="sessionFilter">
+<option value="all">全部</option>
+<option>9:00</option>
+<option>10:00</option>
+<option>11:00</option>
+<option>13:00</option>
+<option>14:00</option>
+<option>15:00</option>
+</select>
+ 
+<h3 id="summary"></h3>
+<div id="list"></div>
+ 
+<script>
+ 
+// ✅ Firebase
+const firebaseConfig = {
+  databaseURL: "https://mass-recruit-event-default-rtdb.asia-southeast1.firebasedatabase.app/"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+ 
+// ✅ 完整名單
+const candidates = [
+{n:"李佳修",t:"9:00"},
+{n:"許哲瑋",t:"9:00"},
+{n:"王懷緯",t:"9:00"},
+{n:"李育霖",t:"9:00"},
+{n:"黃冠維",t:"9:00"},
+{n:"楊博丞",t:"9:00"},
+{n:"吳善垣",t:"9:00"},
+{n:"林俊呈",t:"9:00"},
+{n:"李俊德",t:"9:00"},
+{n:"邱俊評",t:"9:00"},
+ 
+{n:"蔡武丞",t:"10:00"},
+{n:"朱柏勝",t:"10:00"},
+{n:"吳念謙",t:"10:00"},
+{n:"王吉斌",t:"10:00"},
+{n:"林羿廷",t:"10:00"},
+{n:"白祐維",t:"10:00"},
+{n:"陳志鈞",t:"10:00"},
+{n:"黃泊泰",t:"10:00"},
+{n:"劉致賢",t:"10:00"},
+ 
+{n:"楊澤彬",t:"11:00"},
+{n:"廖泉淼",t:"11:00"},
+{n:"趙唯志",t:"11:00"},
+{n:"余旻錡",t:"11:00"},
+{n:"吳淇誌",t:"11:00"},
+{n:"李昱陞",t:"11:00"},
+{n:"任志振",t:"11:00"},
+{n:"曹家瑜",t:"11:00"},
+{n:"張朝閔",t:"11:00"},
+ 
+{n:"楊洸榮",t:"13:00"},
+{n:"林敬傑",t:"13:00"},
+{n:"洪經富",t:"13:00"},
+{n:"彭家威",t:"13:00"},
+{n:"洪偉軒",t:"13:00"},
+{n:"洪加城",t:"13:00"},
+{n:"簡君同",t:"13:00"},
+{n:"林嗣唯",t:"13:00"},
+{n:"周柏碩",t:"13:00"},
+ 
+{n:"翁瑞宏",t:"14:00"},
+{n:"易瑞祥",t:"14:00"},
+{n:"李晉安",t:"14:00"},
+{n:"劉哲銘",t:"14:00"},
+{n:"洪立軍",t:"14:00"},
+{n:"郭洹瑜",t:"14:00"},
+{n:"楊皕盛",t:"14:00"},
+{n:"林明輝",t:"14:00"},
+{n:"謝瑩澂",t:"14:00"},
+ 
+{n:"蘇欣柔",t:"15:00"},
+{n:"侯憲文",t:"15:00"},
+{n:"王暐棟",t:"15:00"},
+{n:"張煒祥",t:"15:00"},
+{n:"許恒嘉",t:"15:00"},
+{n:"林良晏",t:"15:00"},
+{n:"黃于恆",t:"15:00"},
+{n:"莊宜霖",t:"15:00"}
+];
+ 
+// ✅ HR
+const hrList = ["Amber","Jenny","Kevin"];
+ 
+db.ref("checkin").on("value", snap=>{
+  render(snap.val()||{});
+});
+ 
+function render(data){
+  const container = document.getElementById("list");
+  container.innerHTML="";
+  let total=0, checked=0, offer=0, hrDone=0;
+ 
+  const filter = document.getElementById("sessionFilter").value;
+ 
+  candidates.forEach(c=>{
+    if(filter!=="all" && c.t!==filter) return;
+ 
+    total++;
+    const s = data[c.n]||{};
+ 
+    if(s.checked) checked++;
+    if(s.offer) offer++;
+    if(s.hr) hrDone++;
+ 
+    const div=document.createElement("div");
+    div.className="card";
+ 
+    if(s.checked) div.classList.add("checked");
+    if(s.offer) div.classList.add("offer");
+    if(s.hr) div.classList.add("hrDone");
+ 
+    div.innerHTML=`
+      <b>${c.n}</b> (${c.t})<br>
+ 
+      報到 <input type="checkbox" ${s.checked?"checked":""}
+      onchange="update('${c.n}','checked',this.checked)"><br>
+ 
+      Offer <input type="checkbox" ${s.offer?"checked":""}
+      onchange="update('${c.n}','offer',this.checked)"><br>
+ 
+      HR：
+      <select onchange="update('${c.n}','hr',this.value)">
+      <option value="">--選--</option>
+      ${hrList.map(h=>`<option ${s.hr===h?"selected":""}>${h}</option>`).join("")}
+      </select>
+    `;
+ 
+    container.appendChild(div);
+  });
+ 
+  document.getElementById("summary").innerText =
+  `報到 ${checked}/${total} ｜ Offer ${offer} ｜ HR ${hrDone}`;
+}
+ 
+// ✅ 修正版（最重要！）
+function update(name, field, value){
+  db.ref("checkin/"+name).update({
+    [field]: value
+  });
+}
+ 
+document.getElementById("sessionFilter").onchange=()=>{
+  db.ref("checkin").once("value",s=>render(s.val()||{}));
+};
+ 
+</script>
+</body>
+</html>
