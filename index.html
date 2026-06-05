@@ -1,5 +1,4 @@
-<!DOCTYPE html>
-<html lang="zh-TW">
+<!DOCTYPE html><!DOCTYPE="zh-TW">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -21,7 +20,6 @@ body { font-family: Arial; padding:15px; background:#f7f7f7; }
 
 .checked { background:#eee; }
 .offer { background:#c8f7c5; }
-.hrDone { background:#8be28b; }
 .backup { background:#ffeeba; }
 
 .name { font-weight:bold; font-size:16px; }
@@ -70,7 +68,7 @@ const summary = document.getElementById("summary");
 // ✅ HR
 const hrList = ["Chloe","Amber","Aimee"];
 
-// ✅ DATA
+// ✅ data
 let data = {};
 
 // ✅ FULL candidate list
@@ -147,6 +145,11 @@ function render(){
 
 let total=0, arr=0, off=0, hr=0;
 
+let sessionStats={
+"9:00":0,"10:00":0,"11:00":0,
+"13:00":0,"14:00":0,"15:00":0
+};
+
 list.innerHTML="";
 
 candidates.forEach(c=>{
@@ -157,7 +160,12 @@ if(searchBox.value && !c.n.includes(searchBox.value)) return;
 if(notArrived.checked && s.checked) return;
 
 total++;
-if(s.checked) arr++;
+
+if(s.checked){
+arr++;
+sessionStats[c.t]++;
+}
+
 if(s.offer) off++;
 if(s.hr) hr++;
 
@@ -167,7 +175,6 @@ div.className="card";
 if(c.i==="Backup") div.classList.add("backup");
 if(s.checked) div.classList.add("checked");
 if(s.offer) div.classList.add("offer");
-if(s.hr) div.classList.add("hrDone");
 
 div.innerHTML=`
 <div class='name'>${c.n} (${c.t})</div>
@@ -189,7 +196,12 @@ ${hrList.map(h=>`<option ${s.hr===h?"selected":""}>${h}</option>`).join("")}
 list.appendChild(div);
 });
 
-summary.innerText=`Arrive ${arr}/${total} ｜ Offer ${off} ｜ HR ${hr}`;
+let sessionText = Object.entries(sessionStats)
+.map(([t,v]) => `${t}: ${v}`).join(" ｜ ");
+
+summary.innerText =
+`Arrive ${arr}/${total} ｜ Offer ${off} ｜ HR ${hr}
+📊 各場次: ${sessionText}`;
 }
 
 // ✅ update
