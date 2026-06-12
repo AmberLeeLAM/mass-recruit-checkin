@@ -1,212 +1,339 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
-
 <head>
-<meta charset="UTF-8">
-<title>2026/6/13招募報到系統</title>
+  <meta charset="UTF-8">
+  <title>2026/6/13招募報到系統</title>
 
-<meta http-equiv="cache-control" content="no-cache">
-<meta http-equiv="expires" content="0">
-<meta http-equiv="pragma" content="no-cache">
+  <meta http-equiv="cache-control" content="no-cache">
+  <meta http-equiv="expires" content="0">
+  <meta http-equiv="pragma" content="no-cache">
 
-<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 
-<style>
-body { font-family: Arial; padding:15px; background:#f7f7f7; }
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 15px;
+      background: #f7f7f7;
+    }
 
-.card {
-  background:white;
-  border-radius:10px;
-  padding:12px;
-  margin:10px 0;
-  border:1px solid #ddd;
-}
+    h2 {
+      margin-bottom: 16px;
+    }
 
-.checked { background:#eee; }
-.offer { background:#c8f7c5; }
-.backup { background:#ffeeba; }
+    .toolbar {
+      margin-bottom: 14px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
 
-.name { font-weight:bold; font-size:16px; }
-.info { font-size:13px; color:#555; margin:2px 0; }
+    .toolbar select,
+    .toolbar input,
+    .toolbar button {
+      font-size: 16px;
+      padding: 6px 10px;
+    }
 
-.phone {
-  color:#007bff;
-  text-decoration:underline;
-}
+    #summary {
+      margin: 10px 0 18px;
+      line-height: 1.6;
+      font-size: 18px;
+      font-weight: bold;
+    }
 
-.toolbar { margin-bottom:10px; }
-</style>
+    .card {
+      background: white;
+      border-radius: 10px;
+      padding: 12px;
+      margin: 10px 0;
+      border: 1px solid #ddd;
+    }
+
+    .checked {
+      background: #eee;
+    }
+
+    .offer {
+      background: #c8f7c5;
+    }
+
+    .backup {
+      background: #ffeeba;
+    }
+
+    .name {
+      font-weight: bold;
+      font-size: 16px;
+      margin-bottom: 4px;
+    }
+
+    .info {
+      font-size: 13px;
+      color: #555;
+      margin: 2px 0;
+    }
+
+    .phone {
+      color: #007bff;
+      text-decoration: underline;
+      cursor: pointer;
+    }
+
+    .actions {
+      margin-top: 8px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .actions select {
+      padding: 4px 6px;
+    }
+  </style>
 </head>
-
 <body>
 
-<h2>📋 2026/6/13招募報到系統</h2>
+  <h2>📋 2026/6/13招募報到系統</h2>
 
-<div class="toolbar">
-<select id="sessionFilter">
-<option value="all">全部</option>
-<option>9:00</option><option>10:00</option><option>11:00</option>
-<option>13:00</option><option>14:00</option><option>15:00</option>
-</select>
+  <div class="toolbar">
+    <select id="sessionFilter">
+      <option value="all">全部</option>
+      <option value="9:00">9:00</option>
+      <option value="10:00">10:00</option>
+      <option value="11:00">11:00</option>
+      <option value="13:00">13:00</option>
+      <option value="14:00">14:00</option>
+      <option value="15:00">15:00</option>
+    </select>
 
-<input id="searchBox" placeholder="🔍 搜尋姓名">
+    <input id="searchBox" placeholder="🔍 搜尋姓名">
 
-<label><input type="checkbox" id="notArrived"> 只看未報到</label>
+    <label>
+      <input type="checkbox" id="notArrived">
+      只看未報到
+    </label>
 
-<button onclick="exportCSV()">📥 匯出 Excel</button>
-</div>
+    <button onclick="exportCSV()">📥 匯出 Excel</button>
+  </div>
 
-<!-- ✅ 你要的統計區 -->
-<h3 id="summary"></h3>
+  <h3 id="summary"></h3>
+  <div id="list"></div>
 
-<div id="list"></div>
+  <script>
+    // Firebase
+    firebase.initializeApp({
+      databaseURL: "https://mass-recruit-event-default-rtdb.asia-southeast1.firebasedatabase.app/"
+    });
+    const db = firebase.database();
 
-<script>
-// Firebase
-firebase.initializeApp({
-  databaseURL: "https://mass-recruit-event-default-rtdb.asia-southeast1.firebasedatabase.app/"
-});
-const db = firebase.database();
+    // DOM
+    const sessionFilter = document.getElementById("sessionFilter");
+    const searchBox = document.getElementById("searchBox");
+    const notArrived = document.getElementById("notArrived");
+    const list = document.getElementById("list");
+    const summary = document.getElementById("summary");
 
-// DOM
-const sessionFilter = document.getElementById("sessionFilter");
-const searchBox = document.getElementById("searchBox");
-const notArrived = document.getElementById("notArrived");
-const list = document.getElementById("list");
-const summary = document.getElementById("summary");
+    // HR（已加 Wilson）
+    const hrList = ["Chloe", "Amber", "Aimee", "Wilson"];
 
-// HR
-const hrList = ["Chloe","Amber","Aimee"];
+    let data = {};
 
-let data = {};
+    // 完整候選人名單（含電話）
+    const candidates = [
+      {n:"李佳修",t:"9:00",i:"Dino Wang & Jeff Yang",l:"CY",team:"Etch",r:"Cubicle",p:"0982966791"},
+      {n:"謝承佑",t:"9:00",i:"Johnson Kuo & Andy Hsueh",l:"CY",team:"Etch",r:"809",p:"0921590355"},
+      {n:"王懷緯",t:"9:00",i:"Ben Tsai & Kelvin Wang",l:"TC",team:"ECP/CVD",r:"Cubicle",p:"0977449463"},
+      {n:"林俊呈",t:"9:00",i:"Godspeed Lin & Rick Huang",l:"TC",team:"CVD",r:"812",p:"0987427015"},
+      {n:"黃冠維",t:"9:00",i:"Eric Chen & Ethan Pan",l:"CY",team:"CVD",r:"810",p:"0976308221"},
+      {n:"楊博丞",t:"9:00",i:"Yoyo Yeh & Scott Wu",l:"CY",team:"ECP",r:"811",p:"0983777941"},
+      {n:"邱俊評",t:"9:00",i:"I-Fan & Roger Hu",l:"TC",team:"ECP",r:"808",p:"0906607890"},
+      {n:"林孟儒",t:"9:00",i:"Jack Wang & Dean Cheng",l:"TC",team:"Clean",r:"813",p:"0917420629"},
+      {n:"王弘毅",t:"9:00",i:"Backup",l:"CY",team:"",r:"",p:"0932592605"},
 
-// ✅ candidates（你完整名單）
-const candidates = [
-{n:"李佳修",t:"9:00",i:"Dino Wang & Jeff Yang",l:"CY",team:"Etch",r:"Cubicle",p:"0982966791"},
-{n:"謝承佑",t:"9:00",i:"Johnson Kuo & Andy Hsueh",l:"CY",team:"Etch",r:"809",p:"0921590355"},
-{n:"王懷緯",t:"9:00",i:"Ben Tsai & Kelvin Wang",l:"TC",team:"ECP/CVD",r:"Cubicle",p:"0977449463"},
-{n:"林俊呈",t:"9:00",i:"Godspeed Lin & Rick Huang",l:"TC",team:"CVD",r:"812",p:"0987427015"},
-{n:"黃冠維",t:"9:00",i:"Eric Chen & Ethan Pan",l:"CY",team:"CVD",r:"810",p:"0976308221"},
-{n:"楊博丞",t:"9:00",i:"Yoyo Yeh & Scott Wu",l:"CY",team:"ECP",r:"811",p:"0983777941"},
-{n:"邱俊評",t:"9:00",i:"I-Fan & Roger Hu",l:"TC",team:"ECP",r:"808",p:"0906607890"},
-{n:"林孟儒",t:"9:00",i:"Jack Wang & Dean Cheng",l:"TC",team:"Clean",r:"813",p:"0917420629"},
-{n:"王弘毅",t:"9:00",i:"Backup",l:"CY",team:"",r:"",p:"0932592605"},
+      {n:"蔡武丞",t:"10:00",i:"Dino Wang & Jeff Yang",l:"CY",team:"Etch",r:"Cubicle",p:"0970820922"},
+      {n:"朱柏勝",t:"10:00",i:"Johnson Kuo & Andy Hsueh",l:"CY",team:"Etch",r:"809",p:"0965102027"},
+      {n:"吳念謙",t:"10:00",i:"Ben Tsai & Kelvin Wang",l:"TC",team:"ECP/CVD",r:"Cubicle",p:"0972083996"},
+      {n:"王吉斌",t:"10:00",i:"Godspeed Lin & Rick Huang",l:"TC",team:"CVD",r:"812",p:"0920411553"},
+      {n:"林羿廷",t:"10:00",i:"Eric Chen & Ethan Pan",l:"CY",team:"CVD",r:"810",p:"0919102661"},
+      {n:"白祐維",t:"10:00",i:"Yoyo Yeh & Scott Wu",l:"CY",team:"ECP",r:"811",p:"0909390208"},
+      {n:"陳志鈞",t:"10:00",i:"I-Fan & Roger Hu",l:"TC",team:"ECP",r:"808",p:"0921179951"},
+      {n:"黃泊泰",t:"10:00",i:"Jack Wang & Dean Cheng",l:"TC",team:"Clean",r:"813",p:"0978651728"},
+      {n:"劉致賢",t:"10:00",i:"Backup",l:"CY",team:"",r:"",p:"0905057771"},
 
-{n:"蔡武丞",t:"10:00",i:"Dino Wang & Jeff Yang",l:"CY",team:"Etch",r:"Cubicle",p:"0970820922"},
-{n:"朱柏勝",t:"10:00",i:"Johnson Kuo & Andy Hsueh",l:"CY",team:"Etch",r:"809",p:"0965102027"},
-{n:"吳念謙",t:"10:00",i:"Ben Tsai & Kelvin Wang",l:"TC",team:"ECP/CVD",r:"Cubicle",p:"0972083996"},
-{n:"王吉斌",t:"10:00",i:"Godspeed Lin & Rick Huang",l:"TC",team:"CVD",r:"812",p:"0920411553"},
-{n:"林羿廷",t:"10:00",i:"Eric Chen & Ethan Pan",l:"CY",team:"CVD",r:"810",p:"0919102661"},
-{n:"白祐維",t:"10:00",i:"Yoyo Yeh & Scott Wu",l:"CY",team:"ECP",r:"811",p:"0909390208"},
-{n:"陳志鈞",t:"10:00",i:"I-Fan & Roger Hu",l:"TC",team:"ECP",r:"808",p:"0921179951"},
-{n:"黃泊泰",t:"10:00",i:"Jack Wang & Dean Cheng",l:"TC",team:"Clean",r:"813",p:"0978651728"},
-{n:"劉致賢",t:"10:00",i:"Backup",l:"CY",team:"",r:"",p:"0905057771"}
+      {n:"古貫君",t:"11:00",i:"Dino Wang & Jeff Yang",l:"CY",team:"Etch",r:"Cubicle",p:"0900627052"},
+      {n:"楊澤彬",t:"11:00",i:"Johnson Kuo & Andy Hsueh",l:"CY",team:"Etch",r:"809",p:"0976683633"},
+      {n:"趙唯志",t:"11:00",i:"Ben Tsai & Kelvin Wang",l:"TC",team:"ECP/CVD",r:"Cubicle",p:"0976998917"},
+      {n:"余旻錡",t:"11:00",i:"Godspeed Lin & Rick Huang",l:"TC",team:"CVD",r:"812",p:"0988277283"},
+      {n:"黃柏鈞",t:"11:00",i:"Eric Chen & Ethan Pan",l:"CY",team:"CVD",r:"810",p:"0961169715"},
+      {n:"李昱陞",t:"11:00",i:"Yoyo Yeh & Scott Wu",l:"CY",team:"ECP",r:"811",p:"0972344016"},
+      {n:"任志振",t:"11:00",i:"I-Fan & Roger Hu",l:"TC",team:"ECP",r:"808",p:"0958316729"},
+      {n:"曹家瑜 (CY)",t:"11:00",i:"Jack Wang & Dean Cheng",l:"TC",team:"Clean",r:"813",p:"0989170158"},
+      {n:"張朝閔",t:"11:00",i:"Backup",l:"TC/CY",team:"",r:"",p:"0903431272"},
 
-];
+      {n:"林昱均",t:"13:00",i:"Dino Wang & Jeff Yang",l:"CY",team:"Etch",r:"Cubicle",p:"0963253427"},
+      {n:"林敬傑",t:"13:00",i:"Johnson Kuo & Andy Hsueh",l:"CY",team:"Etch",r:"809",p:"0900289179"},
+      {n:"洪經富",t:"13:00",i:"Ben Tsai & Kelvin Wang",l:"TC",team:"ECP/CVD",r:"Cubicle",p:"0981893736"},
+      {n:"彭家威",t:"13:00",i:"Godspeed Lin & Rick Huang",l:"TC",team:"CVD",r:"812",p:"0975896784"},
+      {n:"洪偉軒",t:"13:00",i:"Eric Chen & Ethan Pan",l:"CY",team:"CVD",r:"810",p:"0975008665"},
+      {n:"童士賢",t:"13:00",i:"Yoyo Yeh & Scott Wu",l:"CY",team:"ECP",r:"811",p:"0988416759"},
+      {n:"簡君同",t:"13:00",i:"I-Fan & Roger Hu",l:"TC",team:"ECP",r:"808",p:"0970730408"},
+      {n:"林嗣唯",t:"13:00",i:"Jack Wang & Dean Cheng",l:"TC",team:"Clean",r:"813",p:"0966399488"},
+      {n:"周柏碩",t:"13:00",i:"Backup",l:"TC",team:"",r:"",p:"0970089602"},
 
-// Firebase listen
-db.ref("checkin").on("value", snap=>{
-data = snap.val() || {};
-render();
-});
+      {n:"翁瑞宏",t:"14:00",i:"Dino Wang & Jeff Yang",l:"CY",team:"Etch",r:"Cubicle",p:"0911203348"},
+      {n:"郭洹瑜",t:"14:00",i:"Johnson Kuo & Andy Hsueh",l:"CY",team:"Etch",r:"809",p:"0971799795"},
+      {n:"李晉安",t:"14:00",i:"Ben Tsai & Kelvin Wang",l:"TC",team:"ECP/CVD",r:"Cubicle",p:"0905811619"},
+      {n:"劉哲銘",t:"14:00",i:"Godspeed Lin & Rick Huang",l:"TC",team:"CVD",r:"812",p:"0979826125"},
+      {n:"易瑞祥",t:"14:00",i:"Eric Chen & Ethan Pan",l:"CY",team:"CVD",r:"810",p:"0975363475"},
+      {n:"洪立軍",t:"14:00",i:"Yoyo Yeh & Scott Wu",l:"CY",team:"ECP",r:"811",p:"0955095919"},
+      {n:"楊皕盛",t:"14:00",i:"I-Fan & Roger Hu",l:"TC",team:"ECP",r:"808",p:"0927805577"},
+      {n:"林明輝 (CY)",t:"14:00",i:"Jack Wang & Dean Cheng",l:"TC",team:"Clean",r:"813",p:"0912065272"},
+      {n:"謝瑩澂",t:"14:00",i:"Backup",l:"TC",team:"",r:"",p:"0975665613"},
 
-// ✅ render（含統計）
-function render(){
+      {n:"蘇欣柔",t:"15:00",i:"Dino Wang & Jeff Yang",l:"CY",team:"Etch",r:"Cubicle",p:"0982510439"},
+      {n:"侯憲文",t:"15:00",i:"Johnson Kuo & Andy Hsueh",l:"CY",team:"Etch",r:"809",p:"0955538511"},
+      {n:"游承瑜",t:"15:00",i:"Ben Tsai & Kelvin Wang",l:"TC",team:"ECP/CVD",r:"Cubicle",p:"0963769975"},
+      {n:"張煒祥",t:"15:00",i:"Godspeed Lin & Rick Huang",l:"TC",team:"CVD",r:"812",p:"0979229292"},
+      {n:"許恒嘉",t:"15:00",i:"Eric Chen & Ethan Pan",l:"CY",team:"CVD",r:"810",p:"0988057879"},
+      {n:"林良晏",t:"15:00",i:"Yoyo Yeh & Scott Wu",l:"CY",team:"ECP",r:"811",p:"0922588845"},
+      {n:"黃于恆",t:"15:00",i:"I-Fan & Roger Hu",l:"TC",team:"ECP",r:"808",p:"0916739855"},
+      {n:"楊洸榮 (CY)",t:"15:00",i:"Jack Wang & Dean Cheng",l:"TC",team:"Clean",r:"813",p:"0932582148"}
+    ];
 
-let total=0, arr=0, off=0, hr=0;
+    db.ref("checkin").on("value", snap => {
+      data = snap.val() || {};
+      render();
+    });
 
-let sessionStats={
-"9:00":0,"10:00":0,"11:00":0,
-"13:00":0,"14:00":0,"15:00":0
-};
+    function render() {
+      let total = 0;
+      let arr = 0;
+      let off = 0;
+      let hr = 0;
 
-list.innerHTML="";
+      let sessionStats = {
+        "9:00": 0,
+        "10:00": 0,
+        "11:00": 0,
+        "13:00": 0,
+        "14:00": 0,
+        "15:00": 0
+      };
 
-candidates.forEach(c=>{
-let s=data[c.n]||{};
+      list.innerHTML = "";
 
-// filter
-if(sessionFilter.value!=="all" && c.t!=sessionFilter.value) return;
-if(searchBox.value && !c.n.includes(searchBox.value)) return;
-if(notArrived.checked && s.checked) return;
+      candidates.forEach(c => {
+        const s = data[c.n] || {};
 
-total++;
+        if (sessionFilter.value !== "all" && c.t !== sessionFilter.value) return;
+        if (searchBox.value && !c.n.includes(searchBox.value.trim())) return;
+        if (notArrived.checked && s.checked) return;
 
-if(s.checked){
-arr++;
-sessionStats[c.t]++;
-}
+        total++;
 
-if(s.offer) off++;
-if(s.hr) hr++;
+        if (s.checked) {
+          arr++;
+          sessionStats[c.t]++;
+        }
 
-let div=document.createElement("div");
-div.className="card";
+        if (s.offer) off++;
+        if (s.hr) hr++;
 
-if(c.i==="Backup") div.classList.add("backup");
-if(s.checked) div.classList.add("checked");
-if(s.offer) div.classList.add("offer");
+        const div = document.createElement("div");
+        div.className = "card";
 
-div.innerHTML=`
-<div class='name'>${c.n} (${c.t})</div>
-<div class='info'>👨‍💼 ${c.i}</div>
-<div class='info'>📍 ${c.l} / ${c.team} / ${c.r}</div>
-<div class='info'>📞 <a class='phone' href="tel:${c.p}">${formatPhone(c.p)}</a></div>
+        if (c.i === "Backup") div.classList.add("backup");
+        if (s.checked) div.classList.add("checked");
+        if (s.offer) div.classList.add("offer");
 
-✅ Arrive <input type="checkbox" ${s.checked?"checked":""}
-onchange="update('${c.n}','checked',this.checked)">
+        div.innerHTML = `
+          <div class="name">${c.n} (${c.t})</div>
+          <div class="info">👨‍💼 ${c.i}</div>
+          <div class="info">📍 ${c.l} / ${c.team || "-"} / ${c.r || "-"}</div>
+          <div class="info">📞 <a class="phone" href="tel:${c.p}">${formatPhone(c.p)}</a></div>
 
-⭐ Offer <input type="checkbox" ${s.offer?"checked":""}
-onchange="update('${c.n}','offer',this.checked)">
+          <div class="actions">
+            <label>
+              ✅ Arrive
+              <input type="checkbox" ${s.checked ? "checked" : ""}
+                onchange="update('${escapeName(c.n)}','checked',this.checked)">
+            </label>
 
-<select onchange="update('${c.n}','hr',this.value)">
-<option value="">HR</option>
-${hrList.map(h=>`<option ${s.hr===h?"selected":""}>${h}</option>`).join("")}
-</select>
-`;
+            <label>
+              ⭐ Offer
+              <input type="checkbox" ${s.offer ? "checked" : ""}
+                onchange="update('${escapeName(c.n)}','offer',this.checked)">
+            </label>
 
-list.appendChild(div);
-});
+            <select onchange="update('${escapeName(c.n)}','hr',this.value)">
+              <option value="">HR</option>
+              ${hrList.map(h => `<option value="${h}" ${s.hr === h ? "selected" : ""}>${h}</option>`).join("")}
+            </select>
+          </div>
+        `;
 
-// ✅ 統計區（你要保留）
-let sessionText = Object.entries(sessionStats)
-.map(([t,v]) => `${t}: ${v}`).join(" ｜ ");
+        list.appendChild(div);
+      });
 
-summary.innerText =
-`Arrive ${arr}/${total} ｜ Offer ${off} ｜ HR ${hr}
-📊 各場次: ${sessionText}`;
-}
+      const sessionText = Object.entries(sessionStats)
+        .map(([t, v]) => `${t}: ${v}`)
+        .join(" ｜ ");
 
-function formatPhone(p){
-return p.replace(/(\d{4})(\d{3})(\d{3})/, "$1-$2-$3");
-}
+      summary.innerText =
+        `Arrive ${arr}/${total} ｜ Offer ${off} ｜ HR ${hr}\n📊 各場次: ${sessionText}`;
+    }
 
-function update(n,f,v){
-let p={}; p[f]=v||null;
-db.ref("checkin/"+n).update(p);
-}
+    function formatPhone(p) {
+      if (!p) return "";
+      return p.replace(/(\d{4})(\d{3})(\d{3})/, "$1-$2-$3");
+    }
 
-function exportCSV(){
-let rows=[["Name","Session","Phone","Arrive","Offer","HR"]];
-candidates.forEach(c=>{
-let s=data[c.n]||{};
-rows.push([c.n,c.t,c.p,s.checked?"Yes":"No",s.offer?"Yes":"No",s.hr||""]);
-});
-let csv=rows.map(r=>r.join(",")).join("\n");
-let blob=new Blob([csv]);
-let a=document.createElement("a");
-a.href=URL.createObjectURL(blob);
-a.download="recruit.csv";
-a.click();
-}
+    function escapeName(name) {
+      return name.replace(/'/g, "\\'");
+    }
 
-// events
-sessionFilter.onchange=render;
-searchBox.onkeyup=render;
-notArrived.onchange=render;
+    function update(n, f, v) {
+      const payload = {};
+      payload[f] = v || null;
+      db.ref("checkin/" + n).update(payload);
+    }
 
-</script>
+    function exportCSV() {
+      const rows = [["Name", "Session", "Interviewer", "Location", "Team", "Room", "Phone", "Arrive", "Offer", "HR"]];
+      candidates.forEach(c => {
+        const s = data[c.n] || {};
+        rows.push([
+          c.n,
+          c.t,
+          c.i,
+          c.l,
+          c.team,
+          c.r,
+          formatPhone(c.p),
+          s.checked ? "Yes" : "No",
+          s.offer ? "Yes" : "No",
+          s.hr || ""
+        ]);
+      });
 
+      const csv = "\uFEFF" + rows.map(r =>
+        r.map(field => `"${String(field ?? "").replace(/"/g, '""')}"`).join(",")
+      ).join("\n");
+
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "recruit.csv";
+      a.click();
+    }
+
+    sessionFilter.onchange = render;
+    searchBox.onkeyup = render;
+    notArrived.onchange = render;
+  </script>
 </body>
 </html>
